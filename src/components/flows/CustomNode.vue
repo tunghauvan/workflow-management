@@ -26,6 +26,8 @@ const barColor = computed(() => {
       return 'red'
     case 'pending':
       return 'gray'
+    case 'progress':
+      return 'blue'
     case 'canceled':
       return 'orange'
     default:

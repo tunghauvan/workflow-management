@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { VueFlow, useVueFlow } from '@vue-flow/core'
-import CustomNode from './CustomNode.vue'
+import { ref, onMounted, watch, onBeforeUnmount } from 'vue';
+import { VueFlow, useVueFlow } from '@vue-flow/core';
+import { Controls } from '@vue-flow/controls';
+import CustomNode from './CustomNode.vue';
 import { Background } from '@vue-flow/background';
 
 const props = defineProps({
@@ -17,6 +18,7 @@ const nodes = ref([])
 const edges = ref([])
 const selectedNodeId = ref(null) // Reactive variable to store selected node ID
 const emit = defineEmits(['node-selected'])
+let intervalId = null; // Variable to store the interval ID
 
 const fetchData = async () => {
     const data_url = `http://127.0.0.1:5000/api/workflows/${props.workflowId}`;
@@ -30,6 +32,7 @@ const fetchData = async () => {
             const tasks = data.value.tasks;
             const inDegree = new Map();
             const taskMap = new Map();
+            const levels = new Map();
 
             // Initialize in-degree and task map
             tasks.forEach(task => {
@@ -56,18 +59,42 @@ const fetchData = async () => {
                 });
             }
 
+            // Calculate levels for each task
+            sortedTasks.forEach(task => {
+                if (task.previous.length === 0) {
+                    levels.set(task.id, 0);
+                } else {
+                    const maxLevel = Math.max(...task.previous.map(prev => levels.get(prev)));
+                    levels.set(task.id, maxLevel + 1);
+                }
+            });
+
+            // Group tasks by level
+            const tasksByLevel = Array.from(levels.entries()).reduce((acc, [taskId, level]) => {
+                if (!acc[level]) acc[level] = [];
+                acc[level].push(taskMap.get(taskId));
+                return acc;
+            }, {});
+
             // Create task nodes
-            const taskNodes = sortedTasks.map((task, index) => ({
-                id: task.id,
-                type: 'custom',
-                position: { x: index * (nodeWidth + 50), y: 250 },
-                data: {
-                    status: task.status,
-                    name: task.key,
-                    begin: task.previous.length === 0,
-                    end: !tasks.some(t => t.previous.includes(task.id)),
-                },
-            }));
+            const taskNodes = [];
+            Object.keys(tasksByLevel).forEach(level => {
+                const tasksAtLevel = tasksByLevel[level];
+                tasksAtLevel.forEach((task, index) => {
+                    taskNodes.push({
+                        id: task.id,
+                        type: 'custom',
+                        position: { x: level * (nodeWidth + 50), y: index * 50 },
+                        data: {
+                            status: task.status,
+                            name: task.key,
+                            begin: task.previous.length === 0,
+                            end: !tasks.some(t => t.previous.includes(task.id)),
+                            result: task.result,
+                        },
+                    });
+                });
+            });
 
             // Create task edges
             const taskEdges = tasks.flatMap(task =>
@@ -80,6 +107,11 @@ const fetchData = async () => {
 
             nodes.value = taskNodes;
             edges.value = taskEdges;
+
+            // // if workflow status is not pending and progress, clear the interval
+            // if (data.value.status !== 'pending' && data.value.status !== 'progress') {
+            //     clearInterval(intervalId);
+            // }
         } else {
             console.error('Data does not contain tasks:', data.value);
         }
@@ -88,7 +120,16 @@ const fetchData = async () => {
     }
 };
 
-onMounted(fetchData)
+onMounted(() => {
+    fetchData();
+    intervalId = setInterval(fetchData, 15000); // Set up the interval to refresh data every 1 second
+});
+
+onBeforeUnmount(() => {
+    if (intervalId) {
+        clearInterval(intervalId); // Clear the interval when the component is destroyed
+    }
+});
 
 watch(() => props.workflowId, fetchData)
 
@@ -131,6 +172,7 @@ function onNodeClick({ event, node }) {
             <CustomNode :id="props.id" :data="props.data" />
         </template>
         <Background />
+        <Controls />
     </VueFlow>
 </template>
 

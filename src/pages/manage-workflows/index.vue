@@ -18,14 +18,14 @@
                 <v-row no-gutters class="content-row" rows="1">
                     <v-col cols="8" class="pa-0 border-right">
                         <div>
-                            <Table @selection-changed="handleSelectionChange" />
+                            <Table @update:modelValue="handleSelectionChange" v-model="selectedItems" />
                         </div>
                     </v-col>
                     <v-col cols="4" class="pa-0 scrollable-column">
                         <!-- <div>
               <Details></Details>
             </div> -->
-                        <div class="content">
+                        <div class="content-detail">
                             <div v-if="selectedNode">
                                 <h3>Selected Node Information</h3>
                                 <p><strong>ID:</strong> {{ selectedNode.id }}</p>
@@ -33,6 +33,7 @@
                                 <p><strong>Status:</strong> {{ selectedNode.data.status }}</p>
                                 <p><strong>Begin:</strong> {{ selectedNode.data.begin }}</p>
                                 <p><strong>End:</strong> {{ selectedNode.data.end }}</p>
+                                <p><strong>Result:</strong> {{ selectedNode.data.result }}</p>
                             </div>
                             <div v-else>
                                 <p>No node selected</p>
@@ -44,11 +45,11 @@
                     <v-col cols="12" class="pa-0">
                         <!-- header when selecte workflow -->
                         <v-divider></v-divider>
-                        <v-card class="elevation-0">
-                            <v-card-title 
-                            :class="{'headline': true, 'text-h6': true}"
-                            class="headline">Workflow Chart: {{ workflowId }}</v-card-title>
-                        </v-card>
+                        <!-- <v-card class="elevation-0">
+                            <v-card-title :class="{ 'headline': true, 'text-h6': true }" class="headline">Workflow
+                                Chart:
+                                {{ workflowId }}</v-card-title>
+                        </v-card> -->
                         <TaskChart @node-selected="updateSelectedNode" :workflow-id="workflowId" />
                     </v-col>
                 </v-row>
@@ -87,9 +88,9 @@ export default {
         toggleDrawer() {
             this.drawer = !this.drawer
         },
-        handleSelectionChange(selectedItem) {
+        handleSelectionChange(selectedItems) {
             // set workflowId to the selected item ID
-            this.workflowId = selectedItem
+            this.workflowId = selectedItems[0]
             // Set title to the selected item name in 
         },
     },
@@ -99,7 +100,7 @@ export default {
 <script setup>
 import { ref, onMounted } from 'vue';
 import Sidebar from '@/components/Navbar.vue';
-import Table from '@/components/Table.vue';
+import Table from '@/components/flows/WorkflowTable.vue';
 import Details from '@/components/Details.vue';
 import TaskChart from '@/components/flows/TaskChart.vue';
 const selectedNode = ref(null)
@@ -128,6 +129,11 @@ onMounted(() => {
     /* flex: 1; */
     /* overflow: auto; */
     /* Adjust height to account for the divider */
+    height: calc(100vh - 400px);
+    padding-top: 10px;
+}
+
+.content-detail {
     height: calc(100vh - 350px);
 
     text-align: center;
@@ -137,7 +143,7 @@ onMounted(() => {
 
 .chart-row {
     flex: 0 0 auto;
-    height: 200px;
+    height: 300px;
     /* Adjust the height as needed */
     /* Additional styling for TaskChart if needed */
 }
